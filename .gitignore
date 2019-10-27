@@ -31,6 +31,8 @@ bower_components
 
 # Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
+dist/
+lib/
 
 # Dependency directories
 node_modules/
@@ -40,6 +42,7 @@ jspm_packages/
 typings/
 
 # Optional npm cache directory
+.cache
 .npm
 
 # Optional eslint cache
@@ -59,3 +62,4 @@ typings/
 
 # next.js build output
 .next
+.vscode
