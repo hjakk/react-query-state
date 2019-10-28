@@ -79,7 +79,7 @@ function addListener(this: any, props: any): void {
       const i = this.listeners.indexOf(setState)
       if (i > -1) this.listeners.splice(i, 1)
     }
-  })
+  }, [])
   if (!this.listeners.includes(setState)) this.listeners.push(setState)
   if (props) this.init(props)
 }
