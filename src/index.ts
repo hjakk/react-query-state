@@ -73,7 +73,7 @@ function runListeners(this: any, data: any): void {
 }
 
 function addListener(this: any, props: any): void {
-  if (props) this.handleRouter(props)
+  if (props) this.init(props)
   const [, setState] = React.useState({})
   if (this.listeners.includes(setState)) return
   this.listeners.push(setState)
