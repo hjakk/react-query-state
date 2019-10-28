@@ -1,8 +1,8 @@
-const React = require('react')
+import * as React from 'react'
 
 
 function stringify(data: any, prevKey?: string | null): string {
-  let _q: string = ''
+  let _q = ''
   for (const key in data) {
     if (!data.hasOwnProperty(key)) continue
 
@@ -22,11 +22,11 @@ function stringify(data: any, prevKey?: string | null): string {
   return _q
 }
 
-function parse(str: string) {
+function parse(str: string): { [key: string]: any } {
   str = str.replace(/^\?/, '')
   const params: any = {}
   const arr: string[] = str.split('&')
-  let i: number = -1
+  let i = -1
   while (++i < arr.length) {
     let [_key, _value] = arr[i].split('=')
     _key = decodeURIComponent(_key)
@@ -55,45 +55,45 @@ function parse(str: string) {
 
 const hasProp = Object.prototype.hasOwnProperty
 
-function mapState(newState: any, state: any, force?: boolean) {
-  for (let k in newState) {
+function mapState(newState: any, state: any, force?: boolean): void {
+  for (const k in newState) {
     if (!force && !hasProp.call(state, k)) continue
     state[k] = newState[k]
   }
 }
 
-function updateState(this: any, newState: any) {
+function updateState(this: any, newState: any): void {
   mapState(newState, this.state)
   this.forceUpdate(newState)
 }
 
-function runListeners(this: any, data: any) {
+function runListeners(this: any, data: any): void {
   this.listeners.forEach((fn: any) => fn(data))
   this.setTimer()
 }
 
-function addListener(this: any, props: any) {
+function addListener(this: any, props: any): void {
   if (props) this.handleRouter(props)
   const [, setState] = React.useState({})
   if (this.listeners.includes(setState)) return
   this.listeners.push(setState)
 }
 
-function handleRouterParams(this: any, { history, location }: any) {
+function handleRouterParams(this: any, { history, location }: any): void {
   if (!hasProp.call(this.history, 'push')) {
     this.history.push = history.push
     if (location) mapState(parse(location.search), this.state)
   }
 }
 
-function createUrlState(defaultState: any) {
+export default function createUrlState(defaultState: any): any {
   const state = {}
   const history: { [key: string]: any } = {}
   const listeners: any[] = []
 
   mapState(defaultState, state, true)
 
-  const setTimer = () => {
+  const setTimer = (): void => {
     clearTimeout(history.timer)
     if (history.push) {
       history.timer = setTimeout(() => {
@@ -103,11 +103,9 @@ function createUrlState(defaultState: any) {
   }
 
   const forceUpdate = runListeners.bind({ listeners, setTimer })
-  const handleRouter = handleRouterParams.bind({ state, history })
+  const init = handleRouterParams.bind({ state, history })
   const set = updateState.bind({ state, forceUpdate })
-  const use = addListener.bind({ state, listeners, handleRouter })
+  const use = addListener.bind({ state, listeners, init })
 
-  return { state, set, use }
+  return { state, set, use, init }
 }
-
-module.exports = createUrlState
