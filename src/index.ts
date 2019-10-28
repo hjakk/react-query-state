@@ -73,10 +73,15 @@ function runListeners(this: any, data: any): void {
 }
 
 function addListener(this: any, props: any): void {
-  if (props) this.init(props)
   const [, setState] = React.useState({})
-  if (this.listeners.includes(setState)) return
-  this.listeners.push(setState)
+  React.useEffect(() => {
+    return (): void => {
+      const i = this.listeners.indexOf(setState)
+      if (i > -1) this.listeners.splice(i, 1)
+    }
+  })
+  if (!this.listeners.includes(setState)) this.listeners.push(setState)
+  if (props) this.init(props)
 }
 
 function handleRouterParams(this: any, { history, location }: any): void {
