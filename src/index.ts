@@ -4,24 +4,63 @@ import _query from '@hjk/query'
 
 const hasProp = Object.prototype.hasOwnProperty
 
-function mapState(newState: any, state: any, force?: boolean): void {
+
+type AnyObject = { [key: string]: any }
+
+function mapState(newState: AnyObject, state: AnyObject, force?: boolean): AnyObject {
+  const _changed: AnyObject = {}
   for (const k in newState) {
     if (!force && !hasProp.call(state, k)) continue
-    state[k] = newState[k]
+    if (state[k] !== newState[k]) {
+      state[k] = newState[k]
+      _changed[k] = newState[k]
+    }
   }
+  return _changed
 }
 
-function updateState(this: any, newState: any): void {
-  mapState(newState, this.state)
+interface UpdateStateScope {
+  state: AnyObject
+  forceUpdate(newState: AnyObject): void
+  run(changed: AnyObject): void
+}
+
+function updateState(this: UpdateStateScope, newState: AnyObject): void {
+  const _changed = mapState(newState, this.state)
   this.forceUpdate(newState)
+  this.run(_changed)
 }
 
-function runListeners(this: any, data: any): void {
-  this.listeners.forEach((fn: any) => fn(data))
+
+interface RunCallbacksScope {
+  callbacks: { action?: (changed: AnyObject) => void }
+}
+
+function runCallbacks(this: RunCallbacksScope, changed: AnyObject): void {
+  this.callbacks.action!(changed)
+}
+
+
+type Listener = (data: AnyObject) => void
+
+interface RunListenersScope {
+  listeners: Listener[]
+  setTimer(): void
+}
+
+function runListeners(this: RunListenersScope, data: AnyObject): void {
+  this.listeners.forEach((fn) => fn(data))
   this.setTimer()
 }
 
-function addListener(this: any, props: any): void {
+
+interface AddListenerScope {
+  state: AnyObject
+  listeners: Listener[]
+  init({ history, location }: AnyObject): void
+}
+
+function addListener(this: AddListenerScope, props: AnyObject): void {
   const [, setState] = React.useState({})
   React.useEffect(() => {
     return (): void => {
@@ -33,19 +72,58 @@ function addListener(this: any, props: any): void {
   if (props) this.init(props)
 }
 
-function handleRouterParams(this: any, { history, location }: any): void {
+
+interface HandleRouterParamsScope {
+  state: AnyObject
+  history: AnyObject
+}
+
+function handleRouterParams(this: HandleRouterParamsScope, { history, location }: InitProps): void {
   if (!hasProp.call(this.history, 'push')) {
     this.history.push = history.push
-    if (location) mapState(_query.parse(location.search), this.state)
+    if (location) {
+      const params = _query.parse(location.search)
+      if (params) mapState(params, this.state)
+    }
     const _search = _query.stringify(this.state)
     if (!location || location.search !== _search) history.push({ search: _search })
   }
 }
 
-export default function createUrlState(defaultState: any): any {
+
+interface HandleCallbackScope {
+  callbacks: RunCallbacksScope['callbacks']
+}
+
+function handleCallback(this: HandleCallbackScope, fn: RunCallbacksScope['callbacks']['action'], params?: AnyObject): void {
+  this.callbacks.action = fn
+  if (params) mapState(params, this.callbacks, true)
+}
+
+
+interface InitProps extends AnyObject {
+  history: AnyObject
+  location: AnyObject
+}
+
+interface UrlState {
+  state: any
+  set(newState: AnyObject): void
+  use(props: InitProps): void
+  init(props: InitProps): void
+  onChange(fn: RunCallbacksScope['callbacks']['action'], params?: AnyObject): void
+}
+
+interface HistoryProps {
+  push?: (params: { search: string }) => void
+  timer?: any
+}
+
+export default function createUrlState(defaultState: AnyObject): UrlState {
   const state = {}
-  const history: { [key: string]: any } = {}
+  const history: HistoryProps = {}
   const listeners: any[] = []
+  const callbacks = {}
 
   mapState(defaultState, state, true)
 
@@ -53,15 +131,17 @@ export default function createUrlState(defaultState: any): any {
     clearTimeout(history.timer)
     if (history.push) {
       history.timer = setTimeout(() => {
-        history.push({ search: _query.stringify(state) })
+        history.push!({ search: _query.stringify(state) })
       }, 1000)
     }
   }
 
   const forceUpdate = runListeners.bind({ listeners, setTimer })
   const init = handleRouterParams.bind({ state, history })
-  const set = updateState.bind({ state, forceUpdate })
+  const run = runCallbacks.bind({ callbacks })
+  const set = updateState.bind({ state, run, forceUpdate })
   const use = addListener.bind({ state, listeners, init })
+  const onChange = handleCallback.bind({ callbacks })
 
-  return { state, set, use, init }
+  return { state, set, use, init, onChange }
 }
