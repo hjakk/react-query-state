@@ -1,6 +1,6 @@
 {
   "name": "react-query-state",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "author": "hjakk",
   "license": "MIT",
   "description": "A React hook to controll app state with url search params",
