@@ -3,7 +3,7 @@
   "version": "0.1.6",
   "author": "hjakk",
   "license": "MIT",
-  "description": "A React hook to controll app state with url search params",
+  "description": "A React hook to control app state with url search params",
   "keywords": [
     "react",
     "react router ",
