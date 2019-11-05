@@ -75,18 +75,46 @@ function addListener(this: AddListenerScope, props: AnyObject): void {
 
 interface HandleRouterParamsScope {
   state: AnyObject
+  defaultState: AnyObject
   history: AnyObject
+  listeners: Listener[]
+}
+
+function isEqual(obj1: any, obj2: any) {
+  if (obj1 === obj2) return true
+  if (!obj1 || !obj2) return false
+
+  const k1 = Object.keys(obj1);
+  const k2 = Object.keys(obj2);
+  if (k1.length !== k2.length) return false
+  return !k1.some((k) => obj1[k] !== obj2[k])
 }
 
 function handleRouterParams(this: HandleRouterParamsScope, { history, location }: InitProps): void {
   if (!hasProp.call(this.history, 'push')) {
     this.history.push = history.push
     if (location) {
-      const params = _query.parse(location.search)
-      if (params) mapState(params, this.state)
+      this.history.params = _query.parse(location.search)
+      if (this.history.params) mapState(this.history.params, this.state)
     }
     const _search = _query.stringify(this.state)
-    if (!location || location.search !== _search) history.push({ search: _search })
+    if (!location || location.search !== (_search ? '?' + _search : _search)) {
+      history.push({ search: _search })
+    }
+  }
+  else {
+    if (this.history.prevent) {
+      this.history.prevent = false
+      return
+    }
+    clearTimeout(this.history.timer)
+    this.history.timer = setTimeout(() => {
+      const params = _query.parse(location.search)
+      if (!params || isEqual(this.history.params, params)) return
+      mapState({ ...this.defaultState, ...params }, this.state)
+      this.history.params = params
+      this.listeners.forEach((fn) => fn(params))
+    }, 500)
   }
 }
 
@@ -117,6 +145,7 @@ interface UrlState {
 interface HistoryProps {
   push?: (params: { search: string }) => void
   timer?: any
+  prevent?: boolean
 }
 
 export default function createUrlState(defaultState: AnyObject): UrlState {
@@ -131,15 +160,16 @@ export default function createUrlState(defaultState: AnyObject): UrlState {
     clearTimeout(history.timer)
     if (history.push) {
       history.timer = setTimeout(() => {
+        history.prevent = true
         history.push!({ search: _query.stringify(state) })
       }, 1000)
     }
   }
 
   const forceUpdate = runListeners.bind({ listeners, setTimer })
-  const init = handleRouterParams.bind({ state, history })
   const run = runCallbacks.bind({ callbacks })
   const set = updateState.bind({ state, run, forceUpdate })
+  const init = handleRouterParams.bind({ state, defaultState, listeners, history })
   const use = addListener.bind({ state, listeners, init })
   const onChange = handleCallback.bind({ callbacks })
 
