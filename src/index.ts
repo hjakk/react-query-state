@@ -37,7 +37,7 @@ interface RunCallbacksScope {
 }
 
 function runCallbacks(this: RunCallbacksScope, changed: AnyObject): void {
-  if (this.callbacks.action) this.callbacks.action(changed)
+  this.callbacks.action!(changed)
 }
 
 
@@ -90,6 +90,13 @@ function isEqual(obj1: any, obj2: any) {
   return !k1.some((k) => obj1[k] !== obj2[k])
 }
 
+
+function handleNoParams(_search: string, history: InitProps['history'], location: InitProps['location']): void {
+  if (!location || location.search !== (_search ? `?${ _search }` : _search)) {
+    history.replace({ search: _search })
+  }
+}
+
 function handleRouterParams(this: HandleRouterParamsScope, { history, location }: InitProps): void {
   if (!hasProp.call(this.history, 'push')) {
     this.history.push = history.push
@@ -98,9 +105,7 @@ function handleRouterParams(this: HandleRouterParamsScope, { history, location }
       if (this.history.params) mapState(this.history.params, this.state)
     }
     const _search = _query.stringify(this.state)
-    if (!location || location.search !== (_search ? '?' + _search : _search)) {
-      history.push({ search: _search })
-    }
+    handleNoParams(_search, history, location)
   }
   else {
     if (this.history.prevent) {
@@ -110,7 +115,12 @@ function handleRouterParams(this: HandleRouterParamsScope, { history, location }
     clearTimeout(this.history.timer)
     this.history.timer = setTimeout(() => {
       const params = _query.parse(location.search)
-      if (!params || isEqual(this.history.params, params)) return
+      if (!params) {
+        const _search = _query.stringify(this.state)
+        handleNoParams(_search, history, location)
+        return
+      }
+      else if (isEqual(this.history.params, params)) return
       mapState({ ...this.defaultState, ...params }, this.state)
       this.history.params = params
       this.listeners.forEach((fn) => fn(params))
