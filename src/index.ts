@@ -37,7 +37,7 @@ interface RunCallbacksScope {
 }
 
 function runCallbacks(this: RunCallbacksScope, changed: AnyObject): void {
-  this.callbacks.action!(changed)
+  this.callbacks.action && this.callbacks.action!(changed)
 }
 
 
