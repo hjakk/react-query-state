@@ -60,7 +60,7 @@ interface AddListenerScope {
   init({ history, location }: AnyObject): void
 }
 
-function addListener(this: AddListenerScope, props: AnyObject): void {
+function addListener(this: AddListenerScope, props?: AnyObject): void {
   const [, setState] = React.useState({})
   React.useEffect(() => {
     return (): void => {
@@ -80,7 +80,7 @@ interface HandleRouterParamsScope {
   listeners: Listener[]
 }
 
-function isEqual(obj1: any, obj2: any) {
+function isEqual(obj1: any, obj2: any): boolean {
   if (obj1 === obj2) return true
   if (!obj1 || !obj2) return false
 
@@ -147,7 +147,7 @@ interface InitProps extends AnyObject {
 interface UrlState {
   state: any
   set(newState: AnyObject): void
-  use(props: InitProps): void
+  use(props?: InitProps): void
   init(props: InitProps): void
   onChange(fn: RunCallbacksScope['callbacks']['action'], params?: AnyObject): void
 }
