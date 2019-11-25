@@ -107,7 +107,7 @@ function handleRouterParams(this: HandleRouterParamsScope, { history, location }
     const _search = _query.stringify(this.state)
     handleNoParams(_search, history, location)
   }
-  else {
+  else if (this.history.pathname !== location.pathname || this.history.search !== location.search) {
     if (this.history.prevent) {
       this.history.prevent = false
       return
@@ -126,6 +126,8 @@ function handleRouterParams(this: HandleRouterParamsScope, { history, location }
       this.listeners.forEach((fn) => fn(params))
     }, 500)
   }
+  this.history.pathname = location.pathname
+  this.history.search = location.search
 }
 
 
