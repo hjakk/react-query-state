@@ -56,6 +56,6 @@
     "typescript": "^3.6.4"
   },
   "dependencies": {
-    "@hjk/query": "^0.1.2"
+    "@hjk/query": "^0.1.3"
   }
 }
