@@ -10,13 +10,18 @@ type AnyObject = { [key: string]: any }
 function mapState(newState: AnyObject, state: AnyObject, force?: boolean): AnyObject {
   const _changed: AnyObject = {}
   for (const k in newState) {
-    // if (!force && !hasProp.call(state, k)) continue
+    if (!force && !hasProp.call(state, k)) continue
     if (state[k] !== newState[k]) {
       state[k] = newState[k]
       _changed[k] = newState[k]
     }
   }
   return _changed
+}
+
+function resetState(this: { state: AnyObject, defaultState: AnyObject }): void {
+  for (const k in this.state) delete this.state[k]
+  for (const k in this.defaultState) this.state[k] = this.defaultState[k]
 }
 
 interface UpdateStateScope {
@@ -149,6 +154,7 @@ interface InitProps extends AnyObject {
 interface UrlState {
   state: any
   set(newState: AnyObject): void
+  reset(): void
   use(props?: InitProps): void
   init(props: InitProps): void
   onChange(fn: RunCallbacksScope['callbacks']['action'], params?: AnyObject): void
@@ -181,9 +187,10 @@ export default function createUrlState(defaultState: AnyObject): UrlState {
   const forceUpdate = runListeners.bind({ listeners, setTimer })
   const run = runCallbacks.bind({ callbacks })
   const set = updateState.bind({ state, run, forceUpdate })
+  const reset = resetState.bind({ state, defaultState })
   const init = handleRouterParams.bind({ state, defaultState, listeners, history })
   const use = addListener.bind({ state, listeners, init })
   const onChange = handleCallback.bind({ callbacks })
 
-  return { state, set, use, init, onChange }
+  return { state, set, reset, use, init, onChange }
 }
