@@ -10,7 +10,7 @@ type AnyObject = { [key: string]: any }
 function mapState(newState: AnyObject, state: AnyObject, force?: boolean): AnyObject {
   const _changed: AnyObject = {}
   for (const k in newState) {
-    if (!force && !hasProp.call(state, k)) continue
+    // if (!force && !hasProp.call(state, k)) continue
     if (state[k] !== newState[k]) {
       state[k] = newState[k]
       _changed[k] = newState[k]
