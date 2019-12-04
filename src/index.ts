@@ -57,6 +57,9 @@ QS.prototype.use = function(this: QueryState) {
   React.useEffect(() => () => {
     const i = this.listeners.indexOf(setState)
     if (i >= 0) this.listeners.splice(i, 1)
+    if (!this.listeners.length) {
+      this.state = { ...this.defaultState }
+    }
   }, [])
   if (!this.listeners.includes(setState)) {
     this.listeners.push(setState)
