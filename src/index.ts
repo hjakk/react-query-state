@@ -1,196 +1,99 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 import * as React from 'react'
+import { useHistory, useLocation } from 'react-router-dom'
 import _query from '@hjk/query'
 
 
-const hasProp = Object.prototype.hasOwnProperty
-
-
-type AnyObject = { [key: string]: any }
-
-function mapState(newState: AnyObject, state: AnyObject, force?: boolean): AnyObject {
-  const _changed: AnyObject = {}
-  for (const k in newState) {
-    if (!force && !hasProp.call(state, k)) continue
-    if (state[k] !== newState[k]) {
-      state[k] = newState[k]
-      _changed[k] = newState[k]
-    }
-  }
-  return _changed
-}
-
-function resetState(this: { state: AnyObject, defaultState: AnyObject }): void {
-  for (const k in this.state) delete this.state[k]
-  for (const k in this.defaultState) this.state[k] = this.defaultState[k]
-}
-
-interface UpdateStateScope {
-  state: AnyObject
-  forceUpdate(newState: AnyObject): void
-  run(changed: AnyObject): void
-}
-
-function updateState(this: UpdateStateScope, newState: AnyObject): void {
-  const _changed = mapState(newState, this.state)
-  this.forceUpdate(newState)
-  this.run(_changed)
-}
-
-
-interface RunCallbacksScope {
-  callbacks: { action?: (changed: AnyObject) => void }
-}
-
-function runCallbacks(this: RunCallbacksScope, changed: AnyObject): void {
-  this.callbacks.action && this.callbacks.action!(changed)
-}
-
-
+const _win = typeof window !== 'undefined' ? window : null
+type AnyObject<T = { [key: string]: any }> = { [K in keyof T]: any }
 type Listener = (data: AnyObject) => void
+type Callback = (changed: AnyObject, state: AnyObject) => void
 
-interface RunListenersScope {
+interface QueryState<T = AnyObject> {
+  defaultState: T
+  state: T
   listeners: Listener[]
-  setTimer(): void
+  history: ReturnType<typeof useHistory>
+  location: ReturnType<typeof useLocation>
+  callback?: Callback
+  init(): void
+  use(): void
+  set(state: Partial<T>): void
+  update(): void
+  onChange(data: Callback): void
+  [key: string]: any
 }
 
-function runListeners(this: RunListenersScope, data: AnyObject): void {
-  this.listeners.forEach((fn) => fn(data))
-  this.setTimer()
+function QS<T>(this: QueryState, defaultState: T) {
+  this.defaultState = defaultState
+  const params = _win ? _query.parse(_win.location.search) || {} : {}
+  this.state = { ...this.defaultState, ...params }
+  this.listeners = []
+  return this
 }
 
-
-interface AddListenerScope {
-  state: AnyObject
-  listeners: Listener[]
-  init({ history, location }: AnyObject): void
+QS.prototype.init = function(this: QueryState) {
+  this.history = useHistory()
+  this.location = useLocation()
+  const search = _query.stringify(this.state)
+  if (!this.location.search && search) {
+    this.history.replace({ search })
+    return
+  }
+  if (this.prevent) {
+    this.prevent = false
+    if (this.location.search !== `?${ search }`) {
+      clearTimeout(this.timer)
+      this.history.push({ search })
+    }
+  }
+  else if (this.location.search !== `?${ search }`) {
+    const params = _query.parse(this.location.search)
+    if (params) this.state = params
+  }
 }
 
-function addListener(this: AddListenerScope, props?: AnyObject): void {
+QS.prototype.use = function(this: QueryState) {
   const [, setState] = React.useState({})
-  React.useEffect(() => {
-    return (): void => {
-      const i = this.listeners.indexOf(setState)
-      if (i > -1) this.listeners.splice(i, 1)
-    }
+  React.useEffect(() => () => {
+    const i = this.listeners.indexOf(setState)
+    if (i >= 0) this.listeners.splice(i, 1)
   }, [])
-  if (!this.listeners.includes(setState)) this.listeners.push(setState)
-  if (props) this.init(props)
-}
-
-
-interface HandleRouterParamsScope {
-  state: AnyObject
-  defaultState: AnyObject
-  history: AnyObject
-  listeners: Listener[]
-}
-
-function isEqual(obj1: any, obj2: any): boolean {
-  if (obj1 === obj2) return true
-  if (!obj1 || !obj2) return false
-
-  const k1 = Object.keys(obj1);
-  const k2 = Object.keys(obj2);
-  if (k1.length !== k2.length) return false
-  return !k1.some((k) => obj1[k] !== obj2[k])
-}
-
-
-function handleNoParams(_search: string, history: InitProps['history'], location: InitProps['location']): void {
-  if (!location || location.search !== (_search ? `?${ _search }` : _search)) {
-    history.replace({ search: _search })
+  if (!this.listeners.includes(setState)) {
+    this.listeners.push(setState)
   }
 }
 
-function handleRouterParams(this: HandleRouterParamsScope, { history, location }: InitProps): void {
-  if (!hasProp.call(this.history, 'push')) {
-    this.history.push = history.push
-    if (location) {
-      this.history.params = _query.parse(location.search)
-      if (this.history.params) mapState(this.history.params, this.state)
-    }
-    const _search = _query.stringify(this.state)
-    handleNoParams(_search, history, location)
+QS.prototype.set = function(this: QueryState, newState: AnyObject) {
+  this.prevent = true
+  this.state = { ...this.state }
+  const changed: AnyObject = {}
+  for (const k in newState) {
+    if (this.state[k] !== newState[k]) changed[k] = newState[k]
+    this.state[k] = newState[k]
   }
-  else if (this.history.pathname !== location.pathname || this.history.search !== location.search) {
-    if (this.history.prevent) {
-      this.history.prevent = false
-      return
-    }
-    clearTimeout(this.history.timer)
-    this.history.timer = setTimeout(() => {
-      const params = _query.parse(location.search)
-      if (!params) {
-        const _search = _query.stringify(this.state)
-        handleNoParams(_search, history, location)
-        return
-      }
-      else if (isEqual(this.history.params, params)) return
-      mapState({ ...this.defaultState, ...params }, this.state)
-      this.history.params = params
-      this.listeners.forEach((fn) => fn(params))
-    }, 500)
-  }
-  this.history.pathname = location.pathname
-  this.history.search = location.search
+  this.listeners.forEach((run) => run(this.state))
+  if (this.callback) this.callback(changed, this.state)
+  this.update()
 }
 
-
-interface HandleCallbackScope {
-  callbacks: RunCallbacksScope['callbacks']
+QS.prototype.update = function(this: QueryState) {
+  clearTimeout(this.timer)
+  this.timer = setTimeout(() => {
+    this.history.push({ search: _query.stringify(this.state) })
+  }, 1000)
 }
 
-function handleCallback(this: HandleCallbackScope, fn: RunCallbacksScope['callbacks']['action'], params?: AnyObject): void {
-  this.callbacks.action = fn
-  if (params) mapState(params, this.callbacks, true)
+QS.prototype.onChange = function(this: QueryState, onChange: Callback) {
+  this.callback = onChange
 }
 
-
-interface InitProps extends AnyObject {
-  history: AnyObject
-  location: AnyObject
+interface StateProps<T = AnyObject> {
+  state: AnyObject<T>
+  init: QueryState['init']
+  use: QueryState['use']
+  set(state: Partial<AnyObject<T>>): void
+  onChange: QueryState['onChange']
 }
 
-interface UrlState {
-  state: any
-  set(newState: AnyObject): void
-  reset(): void
-  use(props?: InitProps): void
-  init(props: InitProps): void
-  onChange(fn: RunCallbacksScope['callbacks']['action'], params?: AnyObject): void
-}
-
-interface HistoryProps {
-  push?: (params: { search: string }) => void
-  timer?: any
-  prevent?: boolean
-}
-
-export default function createUrlState(defaultState: AnyObject): UrlState {
-  const state = {}
-  const history: HistoryProps = {}
-  const listeners: any[] = []
-  const callbacks = {}
-
-  mapState(defaultState, state, true)
-
-  const setTimer = (): void => {
-    clearTimeout(history.timer)
-    if (history.push) {
-      history.timer = setTimeout(() => {
-        history.prevent = true
-        history.push!({ search: _query.stringify(state) })
-      }, 1000)
-    }
-  }
-
-  const forceUpdate = runListeners.bind({ listeners, setTimer })
-  const run = runCallbacks.bind({ callbacks })
-  const set = updateState.bind({ state, run, forceUpdate })
-  const reset = resetState.bind({ state, defaultState })
-  const init = handleRouterParams.bind({ state, defaultState, listeners, history })
-  const use = addListener.bind({ state, listeners, init })
-  const onChange = handleCallback.bind({ callbacks })
-
-  return { state, set, reset, use, init, onChange }
-}
+export default <T extends AnyObject>(defaultState: T): StateProps<T> => new (QS as any)(defaultState)

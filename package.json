@@ -43,11 +43,14 @@
     "postversion": "git push && git push --tags"
   },
   "peerDependencies": {
-    "react": "^16.10.2"
+    "react": "^16.10.2",
+    "react-router-dom": "^16.10.2"
   },
   "devDependencies": {
     "@types/node": "^12.11.7",
     "@types/react": "^16.9.5",
+    "@types/react-router": "^5.1.3",
+    "@types/react-router-dom": "^5.1.3",
     "@typescript-eslint/eslint-plugin": "^2.3.3",
     "@typescript-eslint/parser": "^2.3.3",
     "cross-env": "^6.0.3",
