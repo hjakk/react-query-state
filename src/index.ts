@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/rules-of-hooks */
 import * as React from 'react'
 import { useHistory, useLocation } from 'react-router-dom'
 import _query from '@hjk/query'
